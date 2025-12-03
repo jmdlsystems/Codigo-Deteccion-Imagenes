@@ -1,8 +1,8 @@
 # Backend (Python 3.13 + modelo_final_eknn.pkl)
 
 El backend expone una API Flask que carga el modelo documentado
-`backend/modelos/modelo_final_eknn.pkl` y permite subir imágenes desde el
-frontend para medir la confianza del clasificador KNN.
+`backend/modelos/modelo_final_eknn.pkl` usando **joblib** (no pickle) y permite
+subir imágenes desde el frontend para medir la confianza del clasificador KNN.
 
 ## Requisitos
 
@@ -13,17 +13,15 @@ frontend para medir la confianza del clasificador KNN.
    pip install -r backend/requirements.txt
    ```
 
-Las dependencias usan scikit-learn y Pillow, por lo que no necesitas instalar
+Las dependencias usan scikit-learn, Pillow y OpenCV; no necesitas instalar
 TensorFlow para correr la API con el modelo KNN en CPython 3.13.
 
 ## API Flask para conectar con el frontend
 
-1. Configura variables opcionales (por defecto se usa el modelo EfficientNet en
+1. Variables opcionales (por defecto se usa el modelo EKNN en
    `backend/modelos/` y tamaño de entrada 224x224):
    ```bash
    export MODEL_PATH="backend/modelos/modelo_final_eknn.pkl"
-   export TARGET_SIZE="224,224"  # ancho,alto
-   export CLASS_LABELS="label_a,label_b,label_c"  # opcional, coincide con el orden de salida del modelo
    ```
 
 2. Arranca el servidor Flask:
@@ -39,5 +37,5 @@ TensorFlow para correr la API con el modelo KNN en CPython 3.13.
         http://localhost:5000/predict
    ```
 
-La respuesta incluye la clase con mayor probabilidad, la confianza en %, y las
-probabilidades por clase.
+La respuesta incluye la clase predicha, los vecinos retornados por el modelo y
+las distancias correspondientes.

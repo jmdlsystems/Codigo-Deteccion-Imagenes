@@ -44,9 +44,9 @@ export default function App() {
       <h1 className="title">🌽 Detector de Enfermedades en Hojas de Maíz</h1>
 
       {/* SUBIDA DE IMAGEN */}
-      <input 
-        type="file" 
-        accept="image/*" 
+      <input
+        type="file"
+        accept="image/*"
         onChange={(e)=> {
           setImage(e.target.files[0]);
           setPreview(URL.createObjectURL(e.target.files[0]));
@@ -75,11 +75,21 @@ export default function App() {
       {response && (
         <div className="result-box">
           <h2>Resultado del Análisis</h2>
-          <p><b>Enfermedad detectada:</b> {response.prediccion}</p>
-          <p><b>Confianza del modelo:</b> {response.confianza}%</p>
+          <p><b>Clase predicha:</b> {response.clase_predicha}</p>
 
-          <h3>📌 Probabilidades por clase</h3>
-          <pre className="json-box">{JSON.stringify(response.probabilidades, null, 2)}</pre>
+          {response.vecinos && (
+            <>
+              <h3>Vecinos más cercanos</h3>
+              <pre className="json-box">{JSON.stringify(response.vecinos, null, 2)}</pre>
+            </>
+          )}
+
+          {response.distancias && (
+            <>
+              <h3>Distancias a vecinos</h3>
+              <pre className="json-box">{JSON.stringify(response.distancias, null, 2)}</pre>
+            </>
+          )}
         </div>
       )}
     </div>

@@ -1,103 +1,122 @@
-"""Inference helpers for the scikit-learn KNN model on Python 3.13.
+"""Funciones de inferencia para el modelo EKNN guardado con joblib.
 
-The backend now uses the documented ``modelo_final_eknn.pkl`` artifact saved in
-``backend/modelos/``. This module provides a thin wrapper around the pickled
-model plus some Pillow-based preprocessing to convert uploaded images into the
-flat numeric arrays expected by the KNN classifier.
+Este módulo carga ``backend/modelos/modelo_final_eknn.pkl`` usando ``joblib`` y
+preprocesa imágenes con OpenCV replicando el flujo de entrenamiento:
+
+1. Carga la imagen (desde ruta o archivo subido).
+2. Convierte a RGB y redimensiona a 224x224.
+3. Normaliza a [0,1].
+4. Extrae características finas y gruesas (EKNN) y las concatena en un vector.
+5. Ejecuta la predicción con el modelo EKNN y devuelve la clase, vecinos y
+   distancias.
 """
-
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, Tuple
+from typing import Any, Dict
 
-import joblib
+import cv2
 import numpy as np
-import PIL.Image as PILImage
+from joblib import load
+
+BASE_MODEL_PATH = Path(__file__).parent / "modelos" / "modelo_final_eknn.pkl"
 
 
-def load_trained_model(model_path: str | Path):
-    """Load the pickled KNN model from disk."""
+def cargar_modelo(model_path: str | Path = BASE_MODEL_PATH):
+    """Carga el modelo EKNN guardado con joblib."""
 
-    resolved_path = Path(model_path).expanduser().resolve()
-    if not resolved_path.exists():
-        raise FileNotFoundError(f"No model file found at {resolved_path}")
-
-    return joblib.load(resolved_path)
-
-
-def preprocess_image(image_path: str | Path, target_size: Tuple[int, int]) -> np.ndarray:
-    """Load and normalize an image from disk into a flat feature vector."""
-
-    resolved_path = Path(image_path).expanduser().resolve()
-    if not resolved_path.exists():
-        raise FileNotFoundError(f"No image file found at {resolved_path}")
-
-    with resolved_path.open("rb") as stream:
-        return preprocess_image_file(stream, target_size)
+    ruta = Path(model_path).expanduser().resolve()
+    if not ruta.exists():
+        raise FileNotFoundError(f"No se encontró el modelo en {ruta}")
+    return load(ruta)
 
 
-def preprocess_image_file(file_like, target_size: Tuple[int, int]) -> np.ndarray:
-    """Normalize an uploaded image stream for inference.
+def _leer_imagen(ruta_o_archivo: str | Path | Any) -> np.ndarray:
+    """Lee una imagen desde ruta o archivo (por ejemplo, Flask FileStorage)."""
 
-    Accepts file-like objects (e.g., Flask's ``FileStorage``) so the backend can
-    process uploads without writing them to disk.
-    """
+    if hasattr(ruta_o_archivo, "read") or hasattr(ruta_o_archivo, "stream"):
+        stream = getattr(ruta_o_archivo, "stream", ruta_o_archivo)
+        if hasattr(stream, "seek"):
+            stream.seek(0)
+        data = stream.read()
+        if hasattr(stream, "seek"):
+            stream.seek(0)
+        array = np.frombuffer(data, dtype=np.uint8)
+        imagen = cv2.imdecode(array, cv2.IMREAD_COLOR)
+    else:
+        ruta = Path(ruta_o_archivo).expanduser().resolve()
+        if not ruta.exists():
+            raise FileNotFoundError(f"No se encontró la imagen en {ruta}")
+        imagen = cv2.imread(str(ruta), cv2.IMREAD_COLOR)
 
-    stream = getattr(file_like, "stream", file_like)
+    if imagen is None:
+        raise ValueError("No se pudo leer la imagen. Verifica el formato o ruta.")
 
-    if hasattr(stream, "seek"):
-        stream.seek(0)
-
-    img = PILImage.open(stream).convert("RGB")
-    img = img.resize(target_size)
-
-    array = np.asarray(img, dtype=np.float32) / 255.0
-    flat = array.flatten()
-    return flat
+    return imagen
 
 
-def predict_classes(model, processed_images: Iterable[np.ndarray]) -> np.ndarray:
-    """Run model predictions over a batch of preprocessed images."""
+def _extraer_caracteristicas_finas(img_normalizada: np.ndarray) -> np.ndarray:
+    """Características finas: bordeado en escala de grises + vector plano."""
 
-    batch = np.vstack([np.array(img, dtype=np.float32) for img in processed_images])
+    gris = cv2.cvtColor((img_normalizada * 255).astype(np.uint8), cv2.COLOR_RGB2GRAY)
+    bordes = cv2.Laplacian(gris, ddepth=cv2.CV_32F)
+    return bordes.flatten()
 
-    if hasattr(model, "predict_proba"):
-        return model.predict_proba(batch)
 
-    # Fallback: derive pseudo-probabilities from distances if available.
-    if hasattr(model, "kneighbors"):
-        distances, indices = model.kneighbors(batch)
-        probs = 1 / (distances + 1e-8)
-        probs = probs / probs.sum(axis=1, keepdims=True)
-        # Map neighbor indices to classes when possible.
-        if hasattr(model, "classes_"):
-            num_classes = len(model.classes_)
-            prob_matrix = np.zeros((batch.shape[0], num_classes), dtype=np.float32)
-            for row, (neighbor_indices, weight_row) in enumerate(zip(indices, probs)):
-                for neighbor_idx, weight in zip(neighbor_indices, weight_row):
-                    class_idx = neighbor_idx % num_classes
-                    prob_matrix[row, class_idx] += weight
-            prob_matrix = prob_matrix / prob_matrix.sum(axis=1, keepdims=True)
-            return prob_matrix
-        return probs
+def _extraer_caracteristicas_gruesas(img_normalizada: np.ndarray) -> np.ndarray:
+    """Características gruesas: downsample + estadísticos por canal."""
 
-    # Last resort: use predicted labels with uniform confidence.
-    predictions = model.predict(batch)
-    classes = getattr(model, "classes_", np.unique(predictions))
-    num_classes = len(classes)
-    prob_matrix = np.full((batch.shape[0], num_classes), 1 / num_classes, dtype=np.float32)
-    for row, label in enumerate(predictions):
-        if label in classes:
-            idx = list(classes).index(label)
-            prob_matrix[row] = 0
-            prob_matrix[row, idx] = 1.0
-    return prob_matrix
+    reducida = cv2.resize(img_normalizada, (32, 32), interpolation=cv2.INTER_AREA)
+    plana = reducida.flatten()
+    canales = img_normalizada.reshape(-1, 3)
+    medias = canales.mean(axis=0)
+    desv = canales.std(axis=0)
+    return np.concatenate([plana, medias, desv])
+
+
+def _preprocesar_imagen(ruta_o_archivo: str | Path | Any) -> np.ndarray:
+    """Prepara la imagen siguiendo el flujo del entrenamiento EKNN."""
+
+    imagen = _leer_imagen(ruta_o_archivo)
+    rgb = cv2.cvtColor(imagen, cv2.COLOR_BGR2RGB)
+    redimensionada = cv2.resize(rgb, (224, 224), interpolation=cv2.INTER_AREA)
+    normalizada = redimensionada.astype(np.float32) / 255.0
+
+    finas = _extraer_caracteristicas_finas(normalizada)
+    gruesas = _extraer_caracteristicas_gruesas(normalizada)
+
+    vector = np.concatenate([finas, gruesas]).astype(np.float32)
+    return vector
+
+
+def predecir_imagen(ruta_o_archivo: str | Path | Any, modelo=None) -> Dict[str, Any]:
+    """Ejecuta la predicción EKNN y devuelve un diccionario JSON-friendly."""
+
+    try:
+        modelo = modelo or cargar_modelo()
+        vector = _preprocesar_imagen(ruta_o_archivo)
+
+        pred = modelo.predict([vector])
+        clase_predicha = pred[0] if len(pred) else None
+
+        vecinos = None
+        distancias = None
+        if hasattr(modelo, "kneighbors"):
+            distancias, vecinos = modelo.kneighbors([vector])
+            distancias = distancias[0].tolist()
+            vecinos = vecinos[0].tolist()
+
+        return {
+            "clase_predicha": None if clase_predicha is None else str(clase_predicha),
+            "vecinos": vecinos,
+            "distancias": distancias,
+        }
+    except Exception as exc:  # noqa: BLE001
+        # Se devuelve el error serializable para manejo en la vista Flask.
+        raise ValueError(f"Error al predecir la imagen: {exc}") from exc
 
 
 __all__ = [
-    "load_trained_model",
-    "preprocess_image",
-    "preprocess_image_file",
-    "predict_classes",
+    "cargar_modelo",
+    "predecir_imagen",
 ]

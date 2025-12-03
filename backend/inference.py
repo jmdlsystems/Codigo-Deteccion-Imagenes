@@ -13,7 +13,7 @@ from typing import Iterable, Tuple
 
 import joblib
 import numpy as np
-from PIL import Image
+import PIL.Image as PILImage
 
 
 def load_trained_model(model_path: str | Path):
@@ -49,7 +49,7 @@ def preprocess_image_file(file_like, target_size: Tuple[int, int]) -> np.ndarray
     if hasattr(stream, "seek"):
         stream.seek(0)
 
-    img = Image.open(stream).convert("RGB")
+    img = PILImage.open(stream).convert("RGB")
     img = img.resize(target_size)
 
     array = np.asarray(img, dtype=np.float32) / 255.0

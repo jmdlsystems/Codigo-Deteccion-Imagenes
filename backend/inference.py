@@ -8,7 +8,9 @@ low-level graph constructs.
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
+from tkinter import Image
 from typing import Iterable, Tuple
 
 import numpy as np
@@ -54,24 +56,25 @@ def preprocess_image(image_path: str | Path, target_size: Tuple[int, int]) -> np
         return preprocess_image_file(stream, target_size)
 
 
-def preprocess_image_file(file_like, target_size: Tuple[int, int]) -> np.ndarray:
-    """Normalize an uploaded image stream for inference.
 
-    Accepts file-like objects (e.g., Flask's ``FileStorage``) so the backend can
-    process uploads without writing them to disk.
+def preprocess_image_file(file_storage, target_size):
     """
+    Convierte una imagen subida vía Flask (FileStorage)
+    en un tensor numpy listo para el modelo.
+    """
+    # Leer bytes del archivo subido
+    image_bytes = file_storage.read()
 
-    # Reset pointer in case the caller already read the stream.
-    if hasattr(file_like, "seek"):
-        file_like.seek(0)
+    # Convertir bytes → imagen PIL
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
-    img = tf.keras.utils.load_img(file_like, target_size=target_size)
-    array = tf.keras.utils.img_to_array(img)
-    # Ensure deterministic dtype for compatibility with modern TensorFlow builds.
-    array = tf.cast(array, dtype=tf.float32) / 255.0
-    return tf.expand_dims(array, axis=0).numpy()
+    # Redimensionar
+    img = img.resize(target_size)
 
+    # Convertir a arreglo numpy normalizado
+    img_array = np.array(img).astype("float32") / 255.0
 
+    return img_array
 def predict_classes(
     model: tf.keras.Model, processed_images: Iterable[np.ndarray]
 ) -> np.ndarray:

@@ -83,7 +83,7 @@ def create_app() -> Flask:
                     "probabilidades": probs_by_class,
                 }
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return jsonify({"error": str(exc)}), 500
 
     return app

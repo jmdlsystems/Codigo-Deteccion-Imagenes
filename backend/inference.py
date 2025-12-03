@@ -13,7 +13,7 @@ preprocesa imágenes con OpenCV replicando el flujo de entrenamiento:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import cv2
 import numpy as np
@@ -89,6 +89,44 @@ def _preprocesar_imagen(ruta_o_archivo: str | Path | Any) -> np.ndarray:
     return vector
 
 
+def _obtener_probabilidades(
+    modelo: Any, vector: np.ndarray, clases: List[str]
+) -> Dict[str, float]:
+    """Obtiene probabilidades por clase si el modelo las expone."""
+
+    if hasattr(modelo, "predict_proba"):
+        proba = modelo.predict_proba([vector])
+        if proba is not None and len(proba):
+            return {clase: float(score) for clase, score in zip(clases, proba[0])}
+
+    # Fallback sin probabilidades explícitas: 1.0 para la clase predicha
+    pred = modelo.predict([vector])
+    pred_clase = pred[0] if len(pred) else None
+    return {clase: float(clase == pred_clase) for clase in clases}
+
+
+def _vecinos_con_etiquetas(
+    modelo: Any, vector: np.ndarray
+) -> tuple[Optional[List[int]], Optional[List[float]], Optional[List[str]]]:
+    """Devuelve índices, distancias y etiquetas de vecinos si están disponibles."""
+
+    if not hasattr(modelo, "kneighbors"):
+        return None, None, None
+
+    distancias, vecinos = modelo.kneighbors([vector])
+    distancias_list = distancias[0].tolist()
+    vecinos_list = vecinos[0].tolist()
+
+    etiquetas_vecinos: Optional[List[str]] = None
+    if hasattr(modelo, "_y"):
+        try:
+            etiquetas_vecinos = [str(modelo._y[idx]) for idx in vecinos_list]  # type: ignore[attr-defined]
+        except Exception:  # noqa: BLE001
+            etiquetas_vecinos = None
+
+    return vecinos_list, distancias_list, etiquetas_vecinos
+
+
 def predecir_imagen(ruta_o_archivo: str | Path | Any, modelo=None) -> Dict[str, Any]:
     """Ejecuta la predicción EKNN y devuelve un diccionario JSON-friendly."""
 
@@ -96,20 +134,26 @@ def predecir_imagen(ruta_o_archivo: str | Path | Any, modelo=None) -> Dict[str, 
         modelo = modelo or cargar_modelo()
         vector = _preprocesar_imagen(ruta_o_archivo)
 
+        # Determinar las etiquetas de clase conocidas por el modelo
+        clases: List[str] = [str(c) for c in getattr(modelo, "classes_", [])]
+
         pred = modelo.predict([vector])
         clase_predicha = pred[0] if len(pred) else None
 
-        vecinos = None
-        distancias = None
-        if hasattr(modelo, "kneighbors"):
-            distancias, vecinos = modelo.kneighbors([vector])
-            distancias = distancias[0].tolist()
-            vecinos = vecinos[0].tolist()
+        probabilidades = _obtener_probabilidades(modelo, vector, clases) if clases else None
+        confianza = None
+        if probabilidades and clase_predicha is not None:
+            confianza = float(probabilidades.get(clase_predicha, max(probabilidades.values(), default=0.0)))
+
+        vecinos, distancias, etiquetas_vecinos = _vecinos_con_etiquetas(modelo, vector)
 
         return {
             "clase_predicha": None if clase_predicha is None else str(clase_predicha),
+            "confianza": confianza,
+            "probabilidades": probabilidades,
             "vecinos": vecinos,
             "distancias": distancias,
+            "etiquetas_vecinos": etiquetas_vecinos,
         }
     except Exception as exc:  # noqa: BLE001
         # Se devuelve el error serializable para manejo en la vista Flask.

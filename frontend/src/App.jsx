@@ -75,12 +75,28 @@ export default function App() {
       {response && (
         <div className="result-box">
           <h2>Resultado del Análisis</h2>
-          <p><b>Clase predicha:</b> {response.clase_predicha}</p>
+          <p><b>Enfermedad detectada:</b> {response.clase_predicha ?? "-"}</p>
+          {response.confianza !== undefined && response.confianza !== null && (
+            <p><b>Confianza:</b> {(response.confianza * 100).toFixed(2)}%</p>
+          )}
+
+          {response.probabilidades && (
+            <>
+              <h3>Probabilidades por clase</h3>
+              <pre className="json-box">{JSON.stringify(response.probabilidades, null, 2)}</pre>
+            </>
+          )}
 
           {response.vecinos && (
             <>
               <h3>Vecinos más cercanos</h3>
               <pre className="json-box">{JSON.stringify(response.vecinos, null, 2)}</pre>
+              {response.etiquetas_vecinos && (
+                <>
+                  <h4>Etiquetas de vecinos</h4>
+                  <pre className="json-box">{JSON.stringify(response.etiquetas_vecinos, null, 2)}</pre>
+                </>
+              )}
             </>
           )}
 

@@ -2,24 +2,40 @@ import { useState } from "react";
 import "./App.css";
 
 export default function App() {
+  const apiBaseUrl = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [response, setResponse] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const enviarImagen = async () => {
+    if (!image) return;
+
     const form = new FormData();
     form.append("image", image);
 
     setLoading(true);
-    const res = await fetch("http://localhost:5000/predict", {  // API Flask
-      method: "POST",
-      body: form
-    });
+    setError(null);
 
-    const data = await res.json();
-    setResponse(data);
-    setLoading(false);
+    try {
+      const res = await fetch(`${apiBaseUrl}/predict`, {
+        method: "POST",
+        body: form
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Error al procesar la imagen");
+      }
+
+      setResponse(data);
+    } catch (err) {
+      setResponse(null);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -47,6 +63,13 @@ export default function App() {
       <button onClick={enviarImagen} disabled={!image || loading} className="btn">
         {loading ? "Procesando..." : "Detectar Enfermedad"}
       </button>
+
+      {error && (
+        <div className="result-box error">
+          <h2>Error</h2>
+          <p>{error}</p>
+        </div>
+      )}
 
       {/* RESULTADOS DEL BACKEND EN VIVO */}
       {response && (

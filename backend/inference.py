@@ -50,7 +50,22 @@ def preprocess_image(image_path: str | Path, target_size: Tuple[int, int]) -> np
     if not resolved_path.exists():
         raise FileNotFoundError(f"No image file found at {resolved_path}")
 
-    img = tf.keras.utils.load_img(resolved_path, target_size=target_size)
+    with resolved_path.open("rb") as stream:
+        return preprocess_image_file(stream, target_size)
+
+
+def preprocess_image_file(file_like, target_size: Tuple[int, int]) -> np.ndarray:
+    """Normalize an uploaded image stream for inference.
+
+    Accepts file-like objects (e.g., Flask's ``FileStorage``) so the backend can
+    process uploads without writing them to disk.
+    """
+
+    # Reset pointer in case the caller already read the stream.
+    if hasattr(file_like, "seek"):
+        file_like.seek(0)
+
+    img = tf.keras.utils.load_img(file_like, target_size=target_size)
     array = tf.keras.utils.img_to_array(img)
     # Ensure deterministic dtype for compatibility with modern TensorFlow builds.
     array = tf.cast(array, dtype=tf.float32) / 255.0
@@ -84,5 +99,6 @@ def predict_classes(
 __all__ = [
     "load_trained_model",
     "preprocess_image",
+    "preprocess_image_file",
     "predict_classes",
 ]

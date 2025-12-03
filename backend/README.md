@@ -1,9 +1,8 @@
-# Backend (Python 3.13 + TensorFlow)
+# Backend (Python 3.13 + modelo_final_eknn.pkl)
 
-Este proyecto no incluía código de backend, pero los modelos guardados en
-`backend/modelos/` pueden cargarse para inferencia con Python 3.13 usando
-TensorFlow. Usa las utilidades del módulo `inference.py` para trabajar con los
-modelos Keras (`.h5` o `.keras`).
+El backend expone una API Flask que carga el modelo documentado
+`backend/modelos/modelo_final_eknn.pkl` y permite subir imágenes desde el
+frontend para medir la confianza del clasificador KNN.
 
 ## Requisitos
 
@@ -14,16 +13,15 @@ modelos Keras (`.h5` o `.keras`).
    pip install -r backend/requirements.txt
    ```
 
-Las versiones indicadas usan la API pública de TensorFlow 2.x, por lo que no
-requieren `tf.compat.v1` y funcionan con las ruedas distribuidas para CPython
-3.13.
+Las dependencias usan scikit-learn y Pillow, por lo que no necesitas instalar
+TensorFlow para correr la API con el modelo KNN en CPython 3.13.
 
 ## API Flask para conectar con el frontend
 
 1. Configura variables opcionales (por defecto se usa el modelo EfficientNet en
    `backend/modelos/` y tamaño de entrada 224x224):
    ```bash
-   export MODEL_PATH="backend/modelos/mejor_modelo_maiz_efficientnet.keras.h5"
+   export MODEL_PATH="backend/modelos/modelo_final_eknn.pkl"
    export TARGET_SIZE="224,224"  # ancho,alto
    export CLASS_LABELS="label_a,label_b,label_c"  # opcional, coincide con el orden de salida del modelo
    ```

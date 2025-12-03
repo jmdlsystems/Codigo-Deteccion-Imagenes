@@ -1,9 +1,9 @@
-"""Inference helpers using TensorFlow on Python 3.13.
+"""Inference helpers for the scikit-learn KNN model on Python 3.13.
 
-This module keeps the TensorFlow usage limited to the v2 public API so it
-remains forward-compatible with Python 3.13 wheels. Loading and predicting are
-wrapped in small helper functions so callers do not need to manage sessions or
-low-level graph constructs.
+The backend now uses the documented ``modelo_final_eknn.pkl`` artifact saved in
+``backend/modelos/``. This module provides a thin wrapper around the pickled
+model plus some Pillow-based preprocessing to convert uploaded images into the
+flat numeric arrays expected by the KNN classifier.
 """
 
 from __future__ import annotations
@@ -11,40 +11,23 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable, Tuple
 
+import joblib
 import numpy as np
-import tensorflow as tf
+from PIL import Image
 
 
-def load_trained_model(model_path: str | Path) -> tf.keras.Model:
-    """Load a saved TensorFlow model from disk.
-
-    Parameters
-    ----------
-    model_path:
-        Path to a `.h5` or `.keras` model file. The function relies on the
-        TensorFlow v2 loader, which is supported on Python 3.13.
-
-    Returns
-    -------
-    tf.keras.Model
-        A compiled Keras model ready for inference.
-    """
+def load_trained_model(model_path: str | Path):
+    """Load the pickled KNN model from disk."""
 
     resolved_path = Path(model_path).expanduser().resolve()
     if not resolved_path.exists():
         raise FileNotFoundError(f"No model file found at {resolved_path}")
 
-    # Using the standard Keras loader keeps compatibility with TF 2.x wheels
-    # built for CPython 3.13.
-    return tf.keras.models.load_model(resolved_path)
+    return joblib.load(resolved_path)
 
 
 def preprocess_image(image_path: str | Path, target_size: Tuple[int, int]) -> np.ndarray:
-    """Load and normalize an image for inference.
-
-    The preprocessing relies on TensorFlow's high-level utilities available in
-    the v2 API and avoids deprecated symbols removed in recent releases.
-    """
+    """Load and normalize an image from disk into a flat feature vector."""
 
     resolved_path = Path(image_path).expanduser().resolve()
     if not resolved_path.exists():
@@ -61,44 +44,55 @@ def preprocess_image_file(file_like, target_size: Tuple[int, int]) -> np.ndarray
     process uploads without writing them to disk.
     """
 
-    # ``FileStorage`` exposes the underlying stream via ``.stream``. TensorFlow
-    # expects either a path-like object or a real file-like object, so unwrap
-    # the stream when present.
     stream = getattr(file_like, "stream", file_like)
 
-    # Reset pointer in case the caller already read the stream.
     if hasattr(stream, "seek"):
         stream.seek(0)
 
-    img = tf.keras.utils.load_img(stream, target_size=target_size)
-    array = tf.keras.utils.img_to_array(img)
-    # Ensure deterministic dtype for compatibility with modern TensorFlow builds.
-    array = tf.cast(array, dtype=tf.float32) / 255.0
-    return tf.expand_dims(array, axis=0).numpy()
+    img = Image.open(stream).convert("RGB")
+    img = img.resize(target_size)
+
+    array = np.asarray(img, dtype=np.float32) / 255.0
+    flat = array.flatten()
+    return flat
 
 
-def predict_classes(
-    model: tf.keras.Model, processed_images: Iterable[np.ndarray]
-) -> np.ndarray:
-    """Run model predictions over a batch of preprocessed images.
+def predict_classes(model, processed_images: Iterable[np.ndarray]) -> np.ndarray:
+    """Run model predictions over a batch of preprocessed images."""
 
-    Parameters
-    ----------
-    model:
-        A TensorFlow Keras model returned by :func:`load_trained_model`.
-    processed_images:
-        Iterable of images returned by :func:`preprocess_image`.
+    batch = np.vstack([np.array(img, dtype=np.float32) for img in processed_images])
 
-    Returns
-    -------
-    np.ndarray
-        Model predictions stacked into a NumPy array.
-    """
+    if hasattr(model, "predict_proba"):
+        return model.predict_proba(batch)
 
-    # Convert to a single NumPy batch for predict to avoid eager execution
-    # incompatibilities on older graphs.
-    batch = np.vstack(list(processed_images))
-    return model.predict(batch, verbose=0)
+    # Fallback: derive pseudo-probabilities from distances if available.
+    if hasattr(model, "kneighbors"):
+        distances, indices = model.kneighbors(batch)
+        probs = 1 / (distances + 1e-8)
+        probs = probs / probs.sum(axis=1, keepdims=True)
+        # Map neighbor indices to classes when possible.
+        if hasattr(model, "classes_"):
+            num_classes = len(model.classes_)
+            prob_matrix = np.zeros((batch.shape[0], num_classes), dtype=np.float32)
+            for row, (neighbor_indices, weight_row) in enumerate(zip(indices, probs)):
+                for neighbor_idx, weight in zip(neighbor_indices, weight_row):
+                    class_idx = neighbor_idx % num_classes
+                    prob_matrix[row, class_idx] += weight
+            prob_matrix = prob_matrix / prob_matrix.sum(axis=1, keepdims=True)
+            return prob_matrix
+        return probs
+
+    # Last resort: use predicted labels with uniform confidence.
+    predictions = model.predict(batch)
+    classes = getattr(model, "classes_", np.unique(predictions))
+    num_classes = len(classes)
+    prob_matrix = np.full((batch.shape[0], num_classes), 1 / num_classes, dtype=np.float32)
+    for row, label in enumerate(predictions):
+        if label in classes:
+            idx = list(classes).index(label)
+            prob_matrix[row] = 0
+            prob_matrix[row, idx] = 1.0
+    return prob_matrix
 
 
 __all__ = [

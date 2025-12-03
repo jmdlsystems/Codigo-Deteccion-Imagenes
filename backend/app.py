@@ -16,7 +16,7 @@ from inference import (
 )
 
 BASE_DIR = Path(__file__).parent
-DEFAULT_MODEL_PATH = BASE_DIR / "modelos" / "mejor_modelo_maiz_efficientnet.keras.h5"
+DEFAULT_MODEL_PATH = BASE_DIR / "modelos" / "modelo_final_eknn.pkl"
 
 def _parse_target_size(value: str | None) -> tuple[int, int]:
     if not value:

@@ -16,7 +16,7 @@
 
 ## 🌽 Introducción
 
-Este sistema utiliza inteligencia artificial para detectar enfermedades en hojas de maíz a través del análisis de imágenes. El modelo está entrenado para identificar tres condiciones:
+Este sistema utiliza modelos de machine learning para detectar enfermedades en hojas de maíz a través del análisis de imágenes, el cual está entrenado para identificar tres condiciones:
 
 - **Sana**: Hoja sin signos de enfermedad
 - **Roya Común**: Enfermedad fúngica caracterizada por pústulas color naranja

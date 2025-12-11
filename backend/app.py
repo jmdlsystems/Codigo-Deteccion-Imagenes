@@ -16,7 +16,7 @@ from inference import (
 )
 
 BASE_DIR = Path(__file__).parent
-DEFAULT_MODEL_PATH = BASE_DIR / "modelos" / "modelo_final_eknn.pkl"
+DEFAULT_MODEL_PATH = BASE_DIR / "modelos" / "efficientnetB0.keras"
 
 def _parse_target_size(value: str | None) -> tuple[int, int]:
     if not value:
@@ -30,7 +30,7 @@ def _parse_target_size(value: str | None) -> tuple[int, int]:
 def _load_class_labels(value: str | None, num_classes: int) -> List[str]:
     if value:
         labels = [label.strip() for label in value.split(",") if label.strip()]
-        if labels and len(labels) == num_classes:
+        if labels:
             return labels
     return [f"class_{i}" for i in range(num_classes)]
 

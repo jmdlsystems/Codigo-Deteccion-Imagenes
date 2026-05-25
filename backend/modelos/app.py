@@ -6,7 +6,7 @@ from PIL import Image
 import joblib
 
 # ----------------------------------------------------------
-# 🔧 CONFIGURACIÓN PRINCIPAL
+# CONFIGURACIÓN PRINCIPAL
 # ----------------------------------------------------------
 IMG_SIZE = 224
 
@@ -16,7 +16,7 @@ st.title("🌽 Detección de Enfermedades del Maíz con EKNN + DenseNet121")
 st.write("Sube una imagen de una hoja de maíz para obtener la predicción del modelo.")
 
 # ----------------------------------------------------------
-# 📌 Cargar modelo EKNN + clase
+# Cargar modelo EKNN + clase
 # ----------------------------------------------------------
 
 @st.cache_resource
@@ -32,7 +32,7 @@ knn_model = load_knn()
 class_names = load_class_names()
 
 # ----------------------------------------------------------
-# 📌 Cargar extractor de características basado en DenseNet121
+# Cargar extractor de características basado en DenseNet121
 # ----------------------------------------------------------
 
 @st.cache_resource
@@ -56,7 +56,7 @@ def load_extractor():
 extractor_model = load_extractor()
 
 # ----------------------------------------------------------
-# 📌 Función para procesar imágenes (RGB / RGBA)
+# Función para procesar imágenes (RGB / RGBA)
 # ----------------------------------------------------------
 
 def load_and_prepare_image(img: Image.Image):
@@ -74,7 +74,7 @@ def load_and_prepare_image(img: Image.Image):
     return img_array
 
 # ----------------------------------------------------------
-# 📌 Subir archivo
+# Subir archivo
 # ----------------------------------------------------------
 uploaded_file = st.file_uploader("📤 Sube una imagen (PNG, JPG, WEBP, TIFF...)", type=["png", "jpg", "jpeg", "webp", "bmp", "tiff"])
 
@@ -82,7 +82,7 @@ if uploaded_file is not None:
     image = Image.open(uploaded_file)
     st.image(image, caption="🖼 Imagen cargada", use_column_width=True)
 
-    st.write("🔄 Procesando imagen...")
+    st.write("Procesando imagen...")
 
     # Procesamiento seguro
     try:
@@ -96,7 +96,7 @@ if uploaded_file is not None:
         pred_proba = knn_model.predict_proba(features)[0]
 
         st.markdown("---")
-        st.subheader("📌 Resultado")
+        st.subheader("Resultado")
 
         st.write(f"**Predicción:** {class_names[pred_label]}")
         st.write("**Probabilidades por clase:**")
@@ -106,5 +106,5 @@ if uploaded_file is not None:
             st.write(f"- **{cls}:** {p*100:.2f}%")
 
     except Exception as e:
-        st.error(f"❌ Error procesando la imagen: {e}")
+        st.error(f"Error procesando la imagen: {e}")
 

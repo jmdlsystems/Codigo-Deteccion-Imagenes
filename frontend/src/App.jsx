@@ -9,6 +9,12 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [serverStatus, setServerStatus] = useState(false);
+  const [theme, setTheme] = useState("dark"); // 'light' or 'dark'
+
+  // Apply theme to body
+  useEffect(() => {
+    document.body.className = theme;
+  }, [theme]);
 
   // Check server health on mount
   useEffect(() => {
@@ -18,6 +24,10 @@ export default function App() {
       })
       .catch(() => setServerStatus(false));
   }, [apiBaseUrl]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === "dark" ? "light" : "dark");
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -71,28 +81,31 @@ export default function App() {
       {/* HEADER */}
       <div className="header-card">
         <div className="status-badge">
-          <div className={`status-dot ${serverStatus ? "active" : "inactive"}`} 
-               style={{ backgroundColor: serverStatus ? "#22c55e" : "#ef4444", boxShadow: `0 0 8px ${serverStatus ? "#22c55e" : "#ef4444"}`}}></div>
+          <div className={`status-dot ${serverStatus ? "active" : "inactive"}`}
+            style={{ backgroundColor: serverStatus ? "#22c55e" : "#ef4444", boxShadow: `0 0 8px ${serverStatus ? "#22c55e" : "#ef4444"}` }}></div>
           {serverStatus ? "Servidor conectado" : "Desconectado"}
         </div>
-        
-        <h1 className="title">🌽 Detección de Enfermedades en Hojas de Maíz</h1>
-        <p className="subtitle">Modelo de visión por computadora para clasificar hojas de maíz</p>
+
+        <button className="theme-toggle" onClick={toggleTheme} title={`Cambiar a modo ${theme === 'dark' ? 'día' : 'noche'}`}>
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+
+        <h1 className="title">🌽 Sistema de detección de enfermedades en hojas de maíz</h1>
       </div>
 
       <div className="content-grid">
         {/* LEFT COMPONENT: IMAGE INPUT */}
         <div className="card-panel">
           <div className="panel-header">Imagen</div>
-          
+
           <label className="image-area">
-            <input 
-              type="file" 
-              accept="image/*" 
+            <input
+              type="file"
+              accept="image/*"
               onChange={handleImageChange}
               className="input-file"
             />
-            
+
             {preview ? (
               <>
                 <img src={preview} alt="Vista previa" className="preview-img" />
@@ -100,7 +113,7 @@ export default function App() {
               </>
             ) : (
               <div className="placeholder-text">
-                <span style={{fontSize: "2rem"}}>📷</span>
+                <span style={{ fontSize: "2rem" }}>📷</span>
                 <p>Haz clic para subir una imagen</p>
               </div>
             )}
@@ -111,7 +124,7 @@ export default function App() {
           </button>
 
           {error && (
-            <div style={{color: "#ef4444", marginTop: "10px", textAlign: "center"}}>
+            <div style={{ color: "#ef4444", marginTop: "10px", textAlign: "center" }}>
               {error}
             </div>
           )}
@@ -120,7 +133,7 @@ export default function App() {
         {/* RIGHT COMPONENT: RESULTS */}
         <div className="card-panel">
           <div className="panel-header">Predicciones</div>
-          
+
           <div className="prediction-area">
             {response ? (
               <>
@@ -130,13 +143,13 @@ export default function App() {
 
                 <div className="probabilities-list">
                   {Object.entries(response.probabilidades).map(([label, prob]) => (
-                    <div key={label} style={{marginBottom: "10px"}}>
+                    <div key={label} style={{ marginBottom: "10px" }}>
                       <div className="prob-row">
                         <span className="prob-label">{label}</span>
                         <div className="prob-bar-container">
-                          <div 
-                            className="prob-bar-fill" 
-                            style={{width: `${prob}%`}}
+                          <div
+                            className="prob-bar-fill"
+                            style={{ width: `${prob}%` }}
                           ></div>
                         </div>
                         <span className="prob-value">{prob}%</span>
@@ -146,7 +159,7 @@ export default function App() {
                 </div>
               </>
             ) : (
-              <div style={{textAlign: "center", color: "#666", padding: "40px"}}>
+              <div style={{ textAlign: "center", color: "#666", padding: "40px" }}>
                 <p>Los resultados aparecerán aquí</p>
               </div>
             )}

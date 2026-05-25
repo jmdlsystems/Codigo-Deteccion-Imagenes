@@ -1,20 +1,10 @@
 # 📖 Manual de Usuario
-## Sistema de Detección de Enfermedades en Hojas de Maíz
+## Sistema de detección de enfermedades en hojas de maíz
+
 
 ---
 
-## 📋 Índice
-
-1. [Introducción](#introducción)
-2. [Requisitos del Sistema](#requisitos-del-sistema)
-3. [Guía de Uso](#guía-de-uso)
-4. [Interpretación de Resultados](#interpretación-de-resultados)
-5. [Preguntas Frecuentes](#preguntas-frecuentes)
-6. [Solución de Problemas](#solución-de-problemas)
-
----
-
-## 🌽 Introducción
+## Introducción
 
 Este sistema utiliza modelos de machine learning para detectar enfermedades en hojas de maíz a través del análisis de imágenes, el cual está entrenado para identificar tres condiciones:
 
@@ -40,12 +30,12 @@ Este sistema utiliza modelos de machine learning para detectar enfermedades en h
 
 ### Requisitos de las imágenes:
 
-✅ **Formato**: JPG, PNG, JPEG  
-✅ **Contenido**: Foto clara de una hoja de maíz  
-✅ **Iluminación**: Buena luz natural o artificial  
-✅ **Enfoque**: Imagen nítida, no borrosa  
+ **Formato**: JPG, PNG, JPEG  
+ **Contenido**: Foto clara de una hoja de maíz  
+ **Iluminación**: Buena luz natural o artificial  
+ **Enfoque**: Imagen nítida, no borrosa  
 
-❌ **Evitar**: Imágenes oscuras, borrosas o con múltiples hojas superpuestas
+ **Evitar**: Imágenes oscuras, borrosas o con múltiples hojas superpuestas
 
 ---
 

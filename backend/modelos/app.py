@@ -21,12 +21,11 @@ st.write("Sube una imagen de una hoja de maíz para obtener la predicción del m
 
 @st.cache_resource
 def load_knn():
-    return joblib.load("modelo_final_eknn.pkl")  # <-- Este archivo debe existir
+    return joblib.load("modelo_final_eknn.pkl")  
 
 @st.cache_resource
 def load_class_names():
-    # Modifica con tus clases reales
-    return ['mancha_gris_foliar', 'roya_comun', 'sana', 'tizon_foliar']
+    return ['roya_comun', 'sana', 'tizon_foliar']
 
 knn_model = load_knn()
 class_names = load_class_names()

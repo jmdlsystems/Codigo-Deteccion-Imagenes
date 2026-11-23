@@ -21,6 +21,7 @@ st.write("Sube una imagen de una hoja de maíz para obtener la predicción del m
 
 @st.cache_resource
 def load_knn():
+    
     return joblib.load("modelo_final_eknn.pkl")  
 
 @st.cache_resource
